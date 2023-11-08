@@ -33,7 +33,8 @@ namespace IMAC
 	// ==================================================== EX 1
 	__global__
     void maxReduce_ex1(const uint *const dev_array, const uint size, uint *const dev_partialMax);
-    
+	__global__
+    void maxReduce_ex2(const uint *const dev_array, const uint size, uint *const dev_partialMax);
 	// return a uint2 with x: dimBlock / y: dimGrid
     template<uint kernelType>
     uint2 configureKernel(const uint sizeArray)
@@ -46,9 +47,34 @@ namespace IMAC
 			case KERNEL_EX1:
 				dimBlockGrid.x = MAX_NB_THREADS; 
 				dimBlockGrid.y = DEFAULT_NB_BLOCKS;
+				if (dimBlockGrid.x*dimBlockGrid.y < sizeArray) {
+					while (dimBlockGrid.x*dimBlockGrid.y < sizeArray)
+					{
+						dimBlockGrid.y = dimBlockGrid.y*2;
+					}
+				}
+				else
+				{
+					dimBlockGrid.y = nextPow2(sizeArray);
+				}
+				
+				
 			break;
 			case KERNEL_EX2:
 				/// TODO EX 2
+				dimBlockGrid.x = MAX_NB_THREADS; 
+				dimBlockGrid.y = DEFAULT_NB_BLOCKS;
+				if (dimBlockGrid.x*dimBlockGrid.y < sizeArray) {
+					while (dimBlockGrid.x*dimBlockGrid.y < sizeArray)
+					{
+						dimBlockGrid.y = dimBlockGrid.y*2;
+					}
+				}
+				else
+				{
+					dimBlockGrid.y = nextPow2(sizeArray);
+				}
+				
 			break;
 			case KERNEL_EX3:
 				/// TODO EX 3
@@ -75,9 +101,9 @@ namespace IMAC
 
 		// Allocate arrays (host and device) for partial result
 		/// TODO
-		std::vector<uint> host_partialMax(0); // REPLACE SIZE !
-		const size_t bytesPartialMax = 0; // REPLACE BYTES !
-		const size_t bytesSharedMem = 0; // REPLACE BYTES !
+		std::vector<uint> host_partialMax(dimBlockGrid.y); // REPLACE SIZE !
+		const size_t bytesPartialMax = dimBlockGrid.y * sizeof(uint); // REPLACE BYTES !
+		const size_t bytesSharedMem = 2 * dimBlockGrid.x * sizeof(uint); // REPLACE BYTES !
 		
 		uint *dev_partialMax;
 		HANDLE_ERROR(cudaMalloc((void**) &dev_partialMax, bytesPartialMax ) );
@@ -96,12 +122,11 @@ namespace IMAC
 			{
 				case KERNEL_EX1:
 					/// TODO EX 2
-					/// maxReduce_ex1<<<>>>();
-					std::cout << "Not implemented !" << std::endl;
+					maxReduce_ex1<<<dimBlockGrid.y, dimBlockGrid.x, bytesSharedMem>>>(dev_array, size, dev_partialMax);
 				break;
 				case KERNEL_EX2:
 					/// TODO EX 2
-					std::cout << "Not implemented !" << std::endl;
+					maxReduce_ex2<<<dimBlockGrid.y, dimBlockGrid.x, bytesSharedMem>>>(dev_array, size, dev_partialMax);
 				break;
 				case KERNEL_EX3:
 					/// TODO EX 3

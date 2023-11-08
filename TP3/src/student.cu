@@ -1,4 +1,4 @@
-/*
+ /*
 * TP 3 - Réduction CUDA
 * --------------------------
 * Mémoire paratagée, synchronisation, optimisation
@@ -15,7 +15,64 @@ namespace IMAC
     __global__
     void maxReduce_ex1(const uint *const dev_array, const uint size, uint *const dev_partialMax)
 	{
-		/// TODO
+		// shared memory array
+		extern __shared__ uint shared_data[];
+
+		// Indexes 
+		int t_id = threadIdx.x;
+		int id = blockDim.x * blockIdx.x + t_id;
+
+		// Load shared memory from global memory
+		if(id < size)
+		{
+			shared_data[t_id] = dev_array[id];
+		}
+		__syncthreads();
+
+		for(unsigned int s = 1; s + t_id < blockDim.x; t_id<<=1, s<<=1)
+		{
+			shared_data[t_id] = umax(shared_data[t_id], shared_data[s+t_id]);
+			__syncthreads();
+		}
+
+		if (t_id == 0)
+		{
+			dev_partialMax[blockIdx.x] = shared_data[0];
+		}
+		
+
+	}
+
+	    __global__
+    void maxReduce_ex2(const uint *const dev_array, const uint size, uint *const dev_partialMax)
+	{
+		// shared memory array
+		extern __shared__ uint shared_data[];
+
+		// Indexes 
+		int t_id = threadIdx.x;
+		int id = blockDim.x * blockIdx.x + t_id;
+
+		// Load shared memory from global memory
+		if(id < size)
+		{
+			shared_data[t_id] = dev_array[id];
+		}
+		__syncthreads();
+
+		for (unsigned int s=blockDim.x/2; s>0; s>>=1)
+		{
+			if (t_id< s)
+			{
+				shared_data[t_id] += shared_data[t_id + s];
+			}
+			__syncthreads();
+		}
+		
+		if (t_id == 0)
+		{
+			dev_partialMax[blockIdx.x] = shared_data[0];
+		}
 	}
 
 	void studentJob(const std::vector<uint> &array, const uint resCPU /* Just for comparison */, const uint nbIterations)
